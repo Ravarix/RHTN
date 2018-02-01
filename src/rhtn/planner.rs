@@ -10,7 +10,7 @@ struct PlannerState<'a, T: 'a> where T: Clone {
     method_idx: usize,
     decomp_task: Option<&'a ComplexTask<'a, T>>,
     tasks_to_process: Vec<Task<'a, T>>,
-    final_plan: Vec<&'a PrimitiveTask<T>>,
+    final_plan: Vec<&'a PrimitiveTask<'a, T>>,
 }
 
 impl<'a, T: 'a> PlannerState<'a, T> where T: Clone {
@@ -29,7 +29,7 @@ impl<'a, T: 'a> PlannerState<'a, T> where T: Clone {
     }
 }
 
-pub fn generate_plan<'a, T>(domain: &'a Domain<T>, world_state: T) -> Vec<&'a PrimitiveTask<T>> where T: Clone + Copy {
+pub fn generate_plan<'a, T>(domain: &'a Domain<T>, world_state: T) -> Vec<&'a PrimitiveTask<'a, T>> where T: Clone + Copy {
     let root_task = Task::Complex(&domain.root_task);
     let mut ps = PlannerState::new(world_state);
     let mut planner_stack : Vec<PlannerState<T>> = Vec::new();

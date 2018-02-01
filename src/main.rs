@@ -5,54 +5,64 @@ use rhtn::*;
 fn main() {
     let pt1: PrimitiveTask<DemoWorldState> = PrimitiveTask {
         name: "buy food".to_string(),
-        condition: |ws| ws.cash >= 5,
-        effect: |ws| {
+        condition: Box::new(|ws| ws.cash >= 5),
+        effect: Box::new(|ws| {
             ws.cash -= 5;
             ws.food = true;
-        },
+        }),
         action: ||{},
     };
     let buy_food = Task::Primitive(&pt1);
 
     let pt2: PrimitiveTask<DemoWorldState> = PrimitiveTask {
         name: "eat food".to_string(),
-        condition: |ws| ws.food,
-        effect: |ws| {
+        condition: Box::new(|ws| ws.food),
+        effect: Box::new(|ws| {
             ws.food = false;
             ws.hunger = 0;
-        },
+        }),
         action: ||{},
     };
     let eat_food = Task::Primitive(&pt2);
 
     let pt3: PrimitiveTask<DemoWorldState> = PrimitiveTask {
         name: "work".to_string(),
-        condition: |_| true,
-        effect: |ws| {
+        condition: Box::new(|_| true),
+        effect: Box::new(|ws| {
             ws.bank += 2;
             ws.hunger += 1;
-        },
+        }),
         action: ||{},
     };
     let work = Task::Primitive(&pt3);
 
     let pt4: PrimitiveTask<DemoWorldState> = PrimitiveTask {
         name: "withdraw cash".to_string(),
-        condition: |ws| ws.bank >= 5,
-        effect: |ws| {
+        condition: Box::new(|ws| ws.bank >= 5),
+        effect: Box::new(|ws| {
             ws.bank -= 5;
             ws.cash += 5;
+        }),
+        action: ||{},
+    };
+    let withdraw = Task::Primitive(&pt4);
+
+    let withdraw_argd: ArgTask<DemoWorldState, i32> = ArgTask {
+        name: "withdraw argd".to_string(),
+        condition: |ws, amnt| ws.bank >= amnt,
+        effect: |ws, amnt| {
+            ws.bank -= amnt;
+            ws.cash += amnt;
         },
         action: ||{},
     };
-    let withrdraw = Task::Primitive(&pt4);
 
     let pt5: PrimitiveTask<DemoWorldState> = PrimitiveTask {
         name: "game".to_string(),
-        condition: |_| true,
-        effect: |ws| {
+        condition: Box::new(|_| true),
+        effect: Box::new(|ws| {
             ws.hunger += 1;
-        },
+        }),
         action: ||{},
     };
     let game = Task::Primitive(&pt5);
@@ -68,8 +78,8 @@ fn main() {
                 sub_tasks: vec![buy_food, eat_food],
             },
             Method {
-                condition: |ws| true,
-                sub_tasks: vec![withrdraw, buy_food, eat_food]
+                condition: |_| true,
+                sub_tasks: vec![withdraw_argd.with((5)), buy_food, eat_food]
             }
         ],
     };
