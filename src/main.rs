@@ -12,7 +12,7 @@ struct DemoWorldState {
 }
 
 fn main() {
-    let buy_food: Task<DemoWorldState> = Task::Primitive( PrimitiveTask{
+    let buy_food: Task<DemoWorldState> = Task::Primitive( PrimitiveTask {
         name: "buy food".to_string(),
         condition: Box::new(|ws| ws.cash >= 5),
         effect: Box::new(|ws| {
@@ -32,7 +32,7 @@ fn main() {
         action: ||{},
     });
 
-    let work: Task<DemoWorldState> = Task::Primitive( PrimitiveTask {
+    let _work: Task<DemoWorldState> = Task::Primitive( PrimitiveTask {
         name: "work".to_string(),
         condition: Box::new(|_| true),
         effect: Box::new(|ws| {
@@ -42,18 +42,20 @@ fn main() {
         action: ||{},
     });
 
-    let _withdraw: Task<DemoWorldState> = Task::Primitive( PrimitiveTask {
-        name: "withdraw cash".to_string(),
-        condition: Box::new(|ws| ws.bank >= 5),
-        effect: Box::new(|ws| {
-            ws.bank -= 5;
-            ws.cash += 5;
-        }),
+    let pass_time: ArgTask<DemoWorldState, (u32, i32)> = ArgTask {
+        name: "pass_time".to_string(),
+        condition: |_, _| true,
+        effect: |ws, args| {
+            ws.hunger += args.0;
+            ws.bank += args.1;
+        },
         action: ||{},
-    });
+    };
 
-    let withdraw_argd: ArgTask<DemoWorldState, (i32)> = ArgTask {
-        name: "withdraw argd".to_string(),
+    let work = pass_time.with((1, 2));
+    let game = pass_time.with((1, 0));
+
+    let withdraw_vargd: VarArgTask<DemoWorldState, (i32)> = VarArgTask {
         condition: |ws, amnt| ws.bank >= amnt,
         effect: |ws, amnt| {
             ws.bank -= amnt;
@@ -62,7 +64,9 @@ fn main() {
         action: ||{},
     };
 
-    let game: Task<DemoWorldState> = Task::Primitive( PrimitiveTask {
+    let withdraw_all = withdraw_vargd.with("withdraw_all", |ws| ws.bank );
+
+    let _game: Task<DemoWorldState> = Task::Primitive( PrimitiveTask {
         name: "game".to_string(),
         condition: Box::new(|_| true),
         effect: Box::new(|ws| {
@@ -71,7 +75,7 @@ fn main() {
         action: ||{},
     });
 
-    let withdraw_5 = withdraw_argd.with(5);
+
     let cure_hunger: Task<DemoWorldState> = Task::Complex( ComplexTask {
         methods: vec![
             Method {
@@ -84,7 +88,7 @@ fn main() {
             },
             Method {
                 condition: |_| true,
-                sub_tasks: vec![&withdraw_5, &buy_food, &eat_food]
+                sub_tasks: vec![&withdraw_all, &buy_food, &eat_food]
             }
         ],
     });
