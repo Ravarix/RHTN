@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/RHTN.iml" filepath="$PROJECT_DIR$/RHTN.iml" />
+      <module fileurl="file://$PROJECT_DIR$/rhtn.iml" filepath="$PROJECT_DIR$/rhtn.iml" />
     </modules>
   </component>
 </project>

@@ -1,16 +1,18 @@
 use rhtn::task::*;
 
+const DEBUG : bool = false;
+
 pub struct Domain<'a, T: 'a> {
-    pub root_task: ComplexTask<'a, T>,
+    pub root_task: Task<'a, T>,
 }
 
 #[derive(Clone)]
 struct PlannerState<'a, T: 'a> where T: Clone {
     world_state: T,
     method_idx: usize,
-    decomp_task: Option<&'a ComplexTask<'a, T>>,
-    tasks_to_process: Vec<Task<'a, T>>,
-    final_plan: Vec<&'a PrimitiveTask<'a, T>>,
+    decomp_task: Option<&'a Task<'a, T>>,
+    tasks_to_process: Vec<&'a Task<'a, T>>,
+    final_plan: Vec<&'a Task<'a, T>>,
 }
 
 impl<'a, T: 'a> PlannerState<'a, T> where T: Clone {
@@ -29,27 +31,25 @@ impl<'a, T: 'a> PlannerState<'a, T> where T: Clone {
     }
 }
 
-pub fn generate_plan<'a, T>(domain: &'a Domain<T>, world_state: T) -> Vec<&'a PrimitiveTask<'a, T>> where T: Clone + Copy {
-    let root_task = Task::Complex(&domain.root_task);
-    let mut ps = PlannerState::new(world_state);
+pub fn generate_plan<'a, T>(domain: &'a Domain<T>, world_state: T) -> Vec<&'a Task<'a, T>> where T: Clone + Copy {
+    let mut state = PlannerState::new(world_state);
     let mut planner_stack : Vec<PlannerState<T>> = Vec::new();
-    ps.tasks_to_process.push(root_task);
+    state.tasks_to_process.push(&domain.root_task);
 
-    while let Some(current_task) = ps.tasks_to_process.pop() {
+    while let Some(current_task) = state.tasks_to_process.pop() {
         match current_task {
-            Task::Complex(ct) => {
-
+            &Task::Complex(ref ct) => {
                 //find satisfied method
                 let mut satisfied_method = None;
-                while let Some(method) = ct.methods.get(ps.method_idx) {
-                    println!("Evaluating {}", ps.method_idx);
-                    if (method.condition)(&ps.world_state) {
-                        println!("Satisfied");
+                while let Some(method) = ct.methods.get(state.method_idx) {
+                    if DEBUG { println!("Evaluating {}", state.method_idx); }
+                    if (method.condition)(&state.world_state) {
+                        if DEBUG { println!("Satisfied"); }
                         satisfied_method = Some(method);
                         break;
                     }else{
-                        println!("Unsatisfied - Stepping");
-                        ps.step();
+                        if DEBUG { println!("Unsatisfied - Stepping"); }
+                        state.step();
                     }
                 }
 
@@ -57,43 +57,43 @@ pub fn generate_plan<'a, T>(domain: &'a Domain<T>, world_state: T) -> Vec<&'a Pr
                     Some(method) => {
                         // Record Decomposition of Task
                         planner_stack.push(PlannerState {
-                            world_state: ps.world_state.clone(),
-                            method_idx: ps.method_idx,
-                            decomp_task: Some(ct),
-                            tasks_to_process: ps.tasks_to_process.clone(),
-                            final_plan: ps.final_plan.clone(),
+                            world_state: state.world_state.clone(),
+                            method_idx: state.method_idx,
+                            decomp_task: Some(current_task),
+                            tasks_to_process: state.tasks_to_process.clone(),
+                            final_plan: state.final_plan.clone(),
                         });
                         for sub_task in method.sub_tasks.iter().rev(){
-                            ps.tasks_to_process.push(sub_task.clone());
+                            state.tasks_to_process.push(sub_task.clone());
                         }
-                        ps.method_idx = 0;
+                        state.method_idx = 0;
                     },
                     None => {
                         // Restore to last Decomposed Task
-                        println!("No satisfiable methods, rewinding");
+                        if DEBUG { println!("No satisfiable methods, rewinding"); }
                         if let Some(pop) = planner_stack.pop() {
-                            ps = pop;
-                            if let Some(decomp_task) = ps.decomp_task {
-                                ps.tasks_to_process.push(Task::Complex(decomp_task));
-                                ps.step();
+                            state = pop;
+                            if let Some(decomp_task) = state.decomp_task {
+                                state.tasks_to_process.push(decomp_task);
+                                state.step();
                             }else{ assert!(false); } //shouldn't happen
                         }else{ assert!(false); } //shouldn't happen
                     }
                 }
             },
-            Task::Primitive(pt) => {
-                if (pt.condition)(&ps.world_state){
-                    println!("Can accomplish primitive {}, applying", pt.name);
-                    (pt.effect)(&mut ps.world_state);
-                    ps.final_plan.push(&pt);
+            &Task::Primitive(ref pt) => {
+                if (pt.condition)(&state.world_state){
+                    if DEBUG { println!("Can accomplish primitive {}, applying", pt.name); }
+                    (pt.effect)(&mut state.world_state);
+                    state.final_plan.push(current_task);
                 }else{
-                    println!("Cannot accomplish primitive task {}, rewinding", pt.name);
+                    if DEBUG { println!("Cannot accomplish primitive task {}, rewinding", pt.name); }
                     // Restore to last Decomposed Task
                     if let Some(pop) = planner_stack.pop() {
-                        ps = pop;
-                        if let Some(decomp_task) = ps.decomp_task {
-                            ps.tasks_to_process.push(Task::Complex(decomp_task));
-                            ps.step();
+                        state = pop;
+                        if let Some(decomp_task) = state.decomp_task {
+                            state.tasks_to_process.push(decomp_task);
+                            state.step();
                         }else{ assert!(false); } //shouldn't happen
                     }else{ assert!(false); } //shouldn't happen
                 }
@@ -101,5 +101,5 @@ pub fn generate_plan<'a, T>(domain: &'a Domain<T>, world_state: T) -> Vec<&'a Pr
         }
     }
 
-    return ps.final_plan;
+    return state.final_plan;
 }
